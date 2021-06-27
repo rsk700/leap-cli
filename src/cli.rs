@@ -74,10 +74,10 @@ fn format_command(args: &ArgMatches) {
         } else {
             // we was able to read file - path is correct
             let backup_path = get_backup_path(&path);
-            println!("{:?}", backup_path);
             // create backup to prevent data loss, if something will happen during writing formatted data
             fs::rename(&path, &backup_path).unwrap();
             fs::write(&path, formatted).unwrap();
+            // formatted data already saved, we can delete backup now
             fs::remove_file(&backup_path).unwrap();
         }
     }
