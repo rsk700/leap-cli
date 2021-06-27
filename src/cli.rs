@@ -5,37 +5,35 @@ use std::{
 };
 
 use clap::{App, Arg, ArgMatches, SubCommand};
-use leap_lang::formatter;
+use leap_lang::{formatter, parser::parser::Parser};
 
 // todo: report unwrap
 pub fn run() {
     let args = cli_args();
     match args.subcommand() {
         ("format", Some(args)) => format_command(args),
-        // todo: verify (parse, show errors)
+        ("verify", Some(args)) => verify_command(args),
         _ => {}
     }
 }
 
 pub fn cli_args() -> ArgMatches<'static> {
-    // todo: backup, format, delete backup
-    let format_sub_command = SubCommand::with_name("format")
-        .arg(
-            Arg::with_name("spec")
-                .multiple(true)
-                .required(true)
-                .help("Files containing Leap specs"),
-        )
-        .arg(
-            Arg::with_name("stdout")
-                .long("stdout")
-                .short("s")
-                .takes_value(false)
-                .help("Print output to stdout"),
-        );
+    let spec_arg = Arg::with_name("spec")
+        .multiple(true)
+        .required(true)
+        .help("Files containing Leap specs");
+    let format_sub_command = SubCommand::with_name("format").arg(&spec_arg).arg(
+        Arg::with_name("stdout")
+            .long("stdout")
+            .short("s")
+            .takes_value(false)
+            .help("Print output to stdout"),
+    );
+    let verify_sub_command = SubCommand::with_name("verify").arg(&spec_arg);
     let app_title = format!("Leap Language CLI v{}", env!("CARGO_PKG_VERSION"));
     App::new(app_title)
         .subcommand(format_sub_command)
+        .subcommand(verify_sub_command)
         .get_matches()
 }
 
@@ -56,7 +54,7 @@ fn get_backup_path(path: &Path) -> PathBuf {
     panic!("can't find path for backup");
 }
 
-// todo: return Result<(), String>
+// todo: return Enum(Ok, Fail)
 fn format_command(args: &ArgMatches) {
     let paths = args.values_of("spec").unwrap();
     let to_stdout = args.is_present("stdout");
@@ -80,5 +78,15 @@ fn format_command(args: &ArgMatches) {
             // formatted data already saved, we can delete backup now
             fs::remove_file(&backup_path).unwrap();
         }
+    }
+}
+
+// todo: return Enum(Ok, Fail)
+fn verify_command(args: &ArgMatches) {
+    let paths = args.values_of("spec").unwrap();
+    let result = Parser::parse_paths_iter(paths);
+    if let Err(e) = result {
+        // todo: return non zero exit code on programm close
+        println!("{}", e.error_report());
     }
 }
