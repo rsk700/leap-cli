@@ -2,18 +2,22 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
+    process::exit,
 };
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use leap_lang::{formatter, parser::parser::Parser};
 
-// todo: report unwrap
 pub fn run() {
     let args = cli_args();
-    match args.subcommand() {
-        ("format", Some(args)) => format_command(args),
-        ("verify", Some(args)) => verify_command(args),
-        _ => {}
+    let command_result = match args.subcommand() {
+        ("format", Some(args)) => command_format(args),
+        ("verify", Some(args)) => command_verify(args),
+        _ => Ok(()),
+    };
+    if let Err(e) = command_result {
+        println!("{}", e);
+        exit(1);
     }
 }
 
@@ -37,8 +41,11 @@ pub fn cli_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
-fn get_backup_path(path: &Path) -> PathBuf {
-    let name = path.file_name().unwrap().to_owned();
+fn get_backup_path(path: &Path) -> Result<PathBuf, String> {
+    let name = path
+        .file_name()
+        .ok_or("Can't find path for backup")?
+        .to_owned();
     let mut parent = path.to_owned();
     parent.pop();
     for n in 1..100 {
@@ -48,45 +55,47 @@ fn get_backup_path(path: &Path) -> PathBuf {
         let mut backup_path = parent.clone();
         backup_path.push(backup_name);
         if !backup_path.exists() {
-            return backup_path;
+            return Ok(backup_path);
         }
     }
-    panic!("can't find path for backup");
+    Err("Can't find path for backup".to_owned())
 }
 
-// todo: return Enum(Ok, Fail)
-fn format_command(args: &ArgMatches) {
+fn command_format(args: &ArgMatches) -> Result<(), String> {
     let paths = args.values_of("spec").unwrap();
     let to_stdout = args.is_present("stdout");
     for path in paths {
-        // todo: catch unwrap
-        let path = fs::canonicalize(path).unwrap();
-        let data = fs::read_to_string(&path);
+        let path_buf = fs::canonicalize(path).map_err(|_| format!("Path error: `{}`", path))?;
+        let data = fs::read_to_string(&path_buf);
         let formatted = match data {
-            // todo: report error on failed format
-            Ok(s) => formatter::format(&s).unwrap(),
-            Err(e) => panic!("{}", e),
+            Ok(s) => {
+                formatter::format(&s).ok_or_else(|| format!("Error formatting: `{}`", path))?
+            }
+            Err(_) => return Err(format!("Can't read: `{}`", path)),
         };
         if to_stdout {
             print!("{}", formatted);
         } else {
             // we was able to read file - path is correct
-            let backup_path = get_backup_path(&path);
+            let backup_path = get_backup_path(&path_buf)?;
             // create backup to prevent data loss, if something will happen during writing formatted data
-            fs::rename(&path, &backup_path).unwrap();
-            fs::write(&path, formatted).unwrap();
+            fs::rename(&path_buf, &backup_path)
+                .map_err(|_| format!("Failed to backup: `{}`", path))?;
+            fs::write(&path_buf, formatted).map_err(|_| format!("Failed to write: `{}`", path))?;
             // formatted data already saved, we can delete backup now
-            fs::remove_file(&backup_path).unwrap();
+            fs::remove_file(&backup_path)
+                .map_err(|_| format!("Failed delete backup: `{}`", path))?;
         }
     }
+    Ok(())
 }
 
-// todo: return Enum(Ok, Fail)
-fn verify_command(args: &ArgMatches) {
+fn command_verify(args: &ArgMatches) -> Result<(), String> {
     let paths = args.values_of("spec").unwrap();
     let result = Parser::parse_paths_iter(paths);
     if let Err(e) = result {
-        // todo: return non zero exit code on programm close
-        println!("{}", e.error_report());
+        Err(e.error_report())
+    } else {
+        Ok(())
     }
 }
