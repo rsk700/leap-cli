@@ -2,6 +2,11 @@
 name = "leap-cli"
 version = "0.1.2"
 edition = "2018"
+authors = ["Roman Kudryavtsev <rskbox@gmail.com>"]
+license = "MIT"
+description = "Leap language command line tool"
+repository = "https://github.com/rsk700/leap-cli"
+readme = "README.md"
 
 [dependencies]
 leap-lang = "0.1"
