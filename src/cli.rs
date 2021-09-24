@@ -13,6 +13,7 @@ pub fn run() {
     let command_result = match args.subcommand() {
         ("format", Some(args)) => command_format(args),
         ("verify", Some(args)) => command_verify(args),
+        ("print-std", _) => print_std(),
         _ => Ok(()),
     };
     if let Err(e) = command_result {
@@ -34,10 +35,12 @@ pub fn cli_args() -> ArgMatches<'static> {
             .help("Print output to stdout"),
     );
     let verify_sub_command = SubCommand::with_name("verify").arg(&spec_arg);
+    let print_std_sub_command = SubCommand::with_name("print-std");
     let app_title = format!("Leap Language CLI v{}", env!("CARGO_PKG_VERSION"));
     App::new(app_title)
         .subcommand(format_sub_command)
         .subcommand(verify_sub_command)
+        .subcommand(print_std_sub_command)
         .get_matches()
 }
 
@@ -98,4 +101,9 @@ fn command_verify(args: &ArgMatches) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn print_std() -> Result<(), String> {
+    println!("{}", leap_lang::stdtypes::STD_TYPES);
+    Ok(())
 }
