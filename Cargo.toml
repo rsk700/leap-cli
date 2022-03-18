@@ -1,6 +1,6 @@
 [package]
 name = "leap-cli"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 authors = ["Roman Kudryavtsev <rskbox@gmail.com>"]
 license = "MIT"
@@ -9,5 +9,5 @@ repository = "https://github.com/rsk700/leap-cli"
 readme = "README.md"
 
 [dependencies]
-leap-lang = "0.1"
+leap-lang = "0.2"
 clap = "2.33"
